@@ -1,6 +1,6 @@
 # utl-sort-each-column-in-place
 Sort each column in place
-    SAS-L: Sort each column in place                                                                                                    
+    Sort each column in place                                                                                                           
                                                                                                                                         
        have     |    want                                                                                                               
                                                                                                                                         
@@ -39,7 +39,13 @@ Sort each column in place
              Bartosz Jablonski                                                                                                          
              yabwon@gmail.com                                                                                                           
                                                                                                                                         
+          f. Normalize sort and merge                                                                                                   
+                                                                                                                                        
+          g. SAS IML                                                                                                                    
+             draycut <pnclemmensen@GMAIL.COM>                                                                                           
+                                                                                                                                        
     github                                                                                                                              
+    https://tinyurl.com/y7fff4nh                                                                                                        
     https://github.com/rogerjdeangelis/utl-sort-each-column-in-place                                                                    
                                                                                                                                         
     macros                                                                                                                              
@@ -544,5 +550,177 @@ Sort each column in place
       17    17    II     II     I      I      I       3     3     2     1     2                                                         
                                                                                                                                         
                                                                                                                                         
+    /*__                                     _ _                          _                                                             
+     / _|   _ __   ___  _ __ _ __ ___   __ _| (_)_______   ___  ___  _ __| |_     _ __ ___   ___ _ __ __ _  ___                         
+    | |_   | `_ \ / _ \| `__| `_ ` _ \ / _` | | |_  / _ \ / __|/ _ \| `__| __|   | `_ ` _ \ / _ \ `__/ _` |/ _ \                        
+    |  _|  | | | | (_) | |  | | | | | | (_| | | |/ /  __/ \__ \ (_) | |  | |_    | | | | | |  __/ | | (_| |  __/                        
+    |_|(_) |_| |_|\___/|_|  |_| |_| |_|\__,_|_|_/___\___| |___/\___/|_|   \__|   |_| |_| |_|\___|_|  \__, |\___|                        
                                                                                                                                         
-                                              
+    */                                                                                                                                  
+                                                                                                                                        
+    proc datasets lib=work nolist;                                                                                                      
+      delete want;                                                                                                                      
+    run;quit;                                                                                                                           
+                                                                                                                                        
+    %utl_gather(sashelp.class,var,val,,clsxpo,WithFormats=Y);                                                                           
+                                                                                                                                        
+    /*                                                                                                                                  
+    Up to 40 obs WORK.CLSXPO total obs=95                                                                                               
+                                                                                                                                        
+    Obs    VAR       VAL       _COLFORMAT    _COLTYP                                                                                    
+                                                                                                                                        
+      1    NAME      Joyce      $8.             C                                                                                       
+      2    SEX       F          $1.             C                                                                                       
+      3    AGE       11         BEST12.         N                                                                                       
+      4    HEIGHT    51.3       BEST12.         N                                                                                       
+      5    WEIGHT    50.5       BEST12.         N                                                                                       
+      6    NAME      Louise     $8.             C                                                                                       
+      7    SEX       F          $1.             C                                                                                       
+    */                                                                                                                                  
+                                                                                                                                        
+    proc sort data=clsxpo out=clsSrt noequals sortseq=linguistic(Numeric_Collation=ON);                                                 
+    by var val;                                                                                                                         
+    run;quit;                                                                                                                           
+                                                                                                                                        
+    /*                                                                                                                                  
+    Up to 40 obs WORK.CLSSRT total obs=95                                                                                               
+                                                                                                                                        
+    Obs    VAR       VAL       _COLFORMAT    _COLTYP                                                                                    
+                                                                                                                                        
+      1    AGE       11         BEST12.         N                                                                                       
+      2    AGE       11         BEST12.         N                                                                                       
+      3    AGE       12         BEST12.         N                                                                                       
+      4    AGE       12         BEST12.         N                                                                                       
+      5    AGE       12         BEST12.         N                                                                                       
+      6    AGE       12         BEST12.         N                                                                                       
+      7    AGE       12         BEST12.         N                                                                                       
+      8    AGE       13         BEST12.         N                                                                                       
+      9    AGE       13         BEST12.         N                                                                                       
+     10    AGE       13         BEST12.         N                                                                                       
+     11    AGE       14         BEST12.         N                                                                                       
+     12    AGE       14         BEST12.         N                                                                                       
+     13    AGE       14         BEST12.         N                                                                                       
+     14    AGE       14         BEST12.         N                                                                                       
+     15    AGE       15         BEST12.         N                                                                                       
+     16    AGE       15         BEST12.         N                                                                                       
+     17    AGE       15         BEST12.         N                                                                                       
+     18    AGE       15         BEST12.         N                                                                                       
+     19    AGE       16         BEST12.         N                                                                                       
+     20    HEIGHT    51.3       BEST12.         N                                                                                       
+    */                                                                                                                                  
+                                                                                                                                        
+    data want(rename=( %do_over(nams,phrase=%str(x_?=?))));                                                                             
+      if _n_=0 then do; %dosubl('                                                                                                       
+          proc sql;                                                                                                                     
+            select distinct catx(" ",cats("x_",var),"8") into :_retain separated by " "                                                 
+            from clsXpo where _coltyp="N";quit;');                                                                                      
+      end;                                                                                                                              
+      retain &_retain;                                                                                                                  
+      merge                                                                                                                             
+        %do_over(nams,phrase=%str(clsSrt(where=(var="?") rename=val=?)));                                                               
+        %do_over(nams,phrase=%str(x_?=?;));                                                                                             
+       keep x_:;                                                                                                                        
+    run;quit;                                                                                                                           
+                                                                                                                                        
+     Variables in Creation Order                                                                                                        
+                                                                                                                                        
+    #    Variable    Type    Len                                                                                                        
+                                                                                                                                        
+    1    AGE         Num       8                                                                                                        
+    2    HEIGHT      Num       8                                                                                                        
+    3    WEIGHT      Num       8                                                                                                        
+    4    NAME        Char    200                                                                                                        
+    5    SEX         Char    200                                                                                                        
+                                                                                                                                        
+    Up to 40 obs from WANT total obs=19                                                                                                 
+                                                                                                                                        
+    Obs    AGE    HEIGHT    WEIGHT    NAME       SEX                                                                                    
+                                                                                                                                        
+      1     11     51.3       50.5    Alfred      F                                                                                     
+      2     11     56.3       77.0    Alice       F                                                                                     
+      3     12     56.5       83.0    Barbara     F                                                                                     
+      4     12     57.3       84.0    Carol       F                                                                                     
+      5     12     57.5       84.0    Henry       F                                                                                     
+      6     12     59.0       84.5    James       F                                                                                     
+      7     12     59.8       85.0    Jane        F                                                                                     
+      8     13     62.5       90.0    Janet       F                                                                                     
+      9     13     62.5       98.0    Jeffrey     F                                                                                     
+     10     13     62.8       99.5    John        M                                                                                     
+     11     14     63.5      102.5    Joyce       M                                                                                     
+     12     14     64.3      102.5    Judy        M                                                                                     
+     13     14     64.8      112.0    Louise      M                                                                                     
+     14     14     65.3      112.0    Mary        M                                                                                     
+     15     15     66.5      112.5    Philip      M                                                                                     
+     16     15     66.5      112.5    Robert      M                                                                                     
+     17     15     67.0      128.0    Ronald      M                                                                                     
+     18     15     69.0      133.0    Thomas      M                                                                                     
+     19     16     72.0      150.0    William     M                                                                                     
+                                                                                                                                        
+                                                                                                                                        
+    /*         ___ __  __ _                                                                                                             
+      __ _    |_ _|  \/  | |                                                                                                            
+     / _` |    | || |\/| | |                                                                                                            
+    | (_| |_   | || |  | | |___                                                                                                         
+     \__, (_) |___|_|  |_|_____|                                                                                                        
+     |___/                                                                                                                              
+    */                                                                                                                                  
+                                                                                                                                        
+                                                                                                                                        
+    data have(drop=j);                                                                                                                  
+                                                                                                                                        
+      retain id;                                                                                                                        
+                                                                                                                                        
+      array cs[*] c1-c5;                                                                                                                
+                                                                                                                                        
+      do id=1 to 10;                                                                                                                    
+                                                                                                                                        
+        do j=1 to dim(cs);                                                                                                              
+           cs[j]=int(100*uniform(4321)) + 1;                                                                                            
+        end;                                                                                                                            
+                                                                                                                                        
+        output;                                                                                                                         
+                                                                                                                                        
+      end;                                                                                                                              
+                                                                                                                                        
+    run;quit;                                                                                                                           
+                                                                                                                                        
+                                                                                                                                        
+    proc iml;                                                                                                                           
+       use have;                                                                                                                        
+          read all var _num_ into x[colname=varnames];                                                                                  
+       close have;                                                                                                                      
+                                                                                                                                        
+       do i=1 to ncol(x);                                                                                                               
+          y = x[ ,i];                                                                                                                   
+          call sort(y);                                                                                                                 
+          x[, i] = y;                                                                                                                   
+       end;                                                                                                                             
+                                                                                                                                        
+       create want from x[colname=varnames];;                                                                                           
+          append from x;                                                                                                                
+       close want;                                                                                                                      
+    quit;                                                                                                                               
+                                                                                                                                        
+                                                                                                                                        
+                                                                                                                                        
+    Up to 40 obs WORK.WANT total obs=10                                                                                                 
+                                                                                                                                        
+    Obs    ID    C1    C2    C3    C4    C5                                                                                             
+                                                                                                                                        
+      1     1    18     4     7    11     8                                                                                             
+      2     2    19     5    19    16    25                                                                                             
+      3     3    23     9    37    24    31                                                                                             
+      4     4    25    22    44    31    31                                                                                             
+      5     5    26    56    52    34    64                                                                                             
+      6     6    28    65    52    41    74                                                                                             
+      7     7    30    70    65    59    88                                                                                             
+      8     8    56    76    78    61    89                                                                                             
+      9     9    72    78    88    73    93                                                                                             
+     10    10    88    96    97    87    94                                                                                             
+                                                                                                                                        
+                                                                                                                                        
+                                                                                                                                        
+                                                                                                                                        
+                                                                                                                                        
+                                                                                                                                        
+                                                                                                                                        
